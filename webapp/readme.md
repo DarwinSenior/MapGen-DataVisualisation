@@ -1,4 +1,4 @@
-rement:
+requirement:
 The python version I am using is python3,
 thus the following is the requirement
 

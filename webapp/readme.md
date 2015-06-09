@@ -1,6 +1,6 @@
 requirement:
 The python version I am using is python3,
-thus the following is the requirement
+thus the following is the dependency
 
 1. leveldb
 2. cairosvg

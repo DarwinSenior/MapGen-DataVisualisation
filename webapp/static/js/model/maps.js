@@ -1,17 +1,20 @@
 var mapsStore = Reflux.createStore({
 	listenables : mapActions,
 	maps : [],
-	addMap : function(data){
-		console.log("add map");
+	addMap : function(name, file){
 		$.ajax({
 			type: "PUT",
 			url: "/maps",
-			data : data,
-			contentType : false,
-			processData : false,
+			data : {name : name},
 			dataType : "json"
-		}).success((function(data){
-			this.updateMaps(data);
+		}).done((function(newmap){
+			data = new FormData();
+			data.append('csv', file);
+			this.updateMaps(newmap);
+			_id = _.find(newmap, function(value){return (value.status=="uninitiated" && value.name==name)}).id;
+			console.log(_id);
+			data.append('id', _id);
+			this.initMaps(data, _id);
 		}).bind(this));
 	},
 	deleteMap : function(id){
@@ -20,9 +23,23 @@ var mapsStore = Reflux.createStore({
 			url : "/maps",
 			data : {id : id},
 			dataType : "json"
-		}).success((function(data){
+		}).done((function(data){
 			this.updateMaps(data);
-			console.log(data);
+		}).bind(this));
+	},
+	initMaps : function(data, _id){
+		$.ajax({
+			type: "POST",
+			url: "/maps/load",
+			data : data,
+			contentType : false,
+			processData : false,
+			dataType : 'json'
+		}).done((function(data){
+			this.updateMaps(data);
+		}).bind(this)).fail((function(err){
+			console.log(err);
+			this.deleteMap(_id);
 		}).bind(this));
 	},
 	getMaps : function(){
@@ -30,11 +47,12 @@ var mapsStore = Reflux.createStore({
 			type : "GET",
 			url : "/maps",
 			dataType : "json"
-		}).success((function(data){
+		}).done((function(data){
 			this.updateMaps(data);
 		}).bind(this))
 	},
 	updateMaps : function(new_maps){
+		console.log(new_maps);
 		// compare the difference
 		var old_set = {};
 		this.maps.forEach(function(item){

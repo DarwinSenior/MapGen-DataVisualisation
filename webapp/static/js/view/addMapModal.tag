@@ -19,14 +19,22 @@
 		<btn click={okay}>OK <i class="fa fa-check"></i></btn>
 		</div>
 	<script>
-		this.fileName = ""
+		this.init = function(){
+			this.fileName = ""; 
+			this.name.value = "";
+		}
 		this.okay = function(){
-			var form_data = new FormData(this.xform)
-			console.log(form_data)
-			mapActions.addMap(form_data);
-			modalActions.closeModal();
+			if (this.name.value && this.fileName){
+				mapActions.addMap(this.name.value , this.csv.files[0]);
+				modalActions.closeModal();
+			}
 		}
 		this.cancel = function(){
+			this.fileName = "";
+			this.name.value = "";
+			$(this.name).trigger("change");
+			$(this.name).trigger("blur");
+			this.update();
 			modalActions.closeModal();
 		}
 		this.getFileName = function(){

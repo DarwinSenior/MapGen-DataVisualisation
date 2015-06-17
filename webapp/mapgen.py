@@ -8,6 +8,7 @@ import json
 import sys
 import matplotlib.cm as cm
 import database
+from csv import DictReader
 
 def limit(x, domain):
 	minx, maxx = domain
@@ -43,11 +44,12 @@ def utfgrid_decode(x):
 	return x
 
 # we assume the x,y coord is in the range between 0 and 1
-def splitData(data, zoom):
+def splitData(data, info, zoom, width=256):
 	size = 2**zoom
 	data_group = [[[] for i in range(size+1)] for j in range(size+1)] # empty bins
+	info_group = [[[] for i in range(size+1)] for j in range(size+1)]
 	# put each datium to corresponding bin
-	for datium in data:
+	for i, datium in enumerate(data):
 		left = datium[0]-datium[2] # x-a
 		right = datium[0]+datium[2] # x+a
 		top = datium[1]-datium[2] # y-a
@@ -58,17 +60,22 @@ def splitData(data, zoom):
 		y1 = int(top*size)
 		y2 = int(bottom*size)
 
-		data_group[x1][y1].append(datium)
-		data_group[x1][y2].append(datium) if y1!=y2 else None
-		data_group[x2][y1].append(datium) if x1!=x2 else None
-		data_group[x2][y2].append(datium) if (x1!=x2 and y1!=y2) else None
-	return data_group
+		if (datium[2]*size*width>1): #drawable as an pixel perspective
+			data_group[x1][y1].append(datium)
+			info_group[x1][y1].append(info[i])
+			if y1!=y2:
+				data_group[x1][y2].append(datium)
+				info_group[x1][y2].append(info[i])
+			if x1!=x2:
+				data_group[x2][y1].append(datium)
+				info_group[x2][y1].append(info[i])
+			if (x1!=x2 and y1!=y2):
+				data_group[x2][y2].append(datium)
+				info_group[x2][y2].append(info[i])
+	return data_group, info_group
 
-def parseData(csv):
-	raw_data = pd.read_csv(csv)
-	valid_color = lambda x: -1<=x<=3
-	valid_index, = np.where(raw_data.COLOR.map(valid_color))
-	raw_data = raw_data.ix[valid_index]
+def parseData(csvfile):
+	raw_data = pd.read_csv(csvfile)
 
 	data = np.zeros((len(raw_data), 6))
 	data[:,0] = minmax_scale(raw_data.DEC.values) # x
@@ -76,9 +83,13 @@ def parseData(csv):
 	data[:,2] = raw_data.A_IMAGE.values*0.263/3600*2 # a
 	data[:,3] = raw_data.B_IMAGE.values*0.263/3600*2 # b
 	data[:,4] = raw_data.THETA_IMAGE.values+90.
-	data[:,5] = minmax_scale(raw_data.COLOR.values) # colour 
+	# data[:,5] = minmax_scale(raw_data.COLOR.values) # colour 
 
-	return data
+	# currently everything is saved as string
+	csvfile.seek(0)
+	header = csvfile.readline().strip().split(',')
+	info = [row for row in DictReader(csvfile, header)]
+	return data, info, header
 
 # to draw the image from data and scale it with x,y
 def drawSvg(data, x, y, zoom, height=256, width=256):
@@ -105,7 +116,7 @@ def drawSvg(data, x, y, zoom, height=256, width=256):
 	%s</svg>
 	 """%(height, width, ellipses)
 
-def drawUTFMap(data, raw_img, x, y, zoom, height=256, width=256):
+def drawUTFMap(data, info, raw_img, x, y, zoom, height=256, width=256):
 	size = 1/(2**zoom)
 	rangex = np.array([x*size, (x+1)*size])
 	rangey = np.array([y*size, (y+1)*size])
@@ -124,7 +135,7 @@ def drawUTFMap(data, raw_img, x, y, zoom, height=256, width=256):
 	# 3 is rely on the fact that it is rgb not rgba
 	pixels = np.array(img.getdata()).reshape((width/2, height/2, 3))
 	grid = np.zeros((width/2, height/2), dtype=np.uint8)
-	info = {0 : {}}
+	new_info = {0 : {}}
 
 	for i,datium in enumerate(data):
 		x2, y2, a, b, theta, colour = datium
@@ -136,11 +147,11 @@ def drawUTFMap(data, raw_img, x, y, zoom, height=256, width=256):
 					grid[y1][x1] = i+1
 					colorExist = True
 		if colorExist:
-			info[i+1] = {"x": x2, "y": y2, "a": a, "b": b, "theta": theta, "color": colour}
+			new_info[i+1] = info[i]
 
 	grid = ["".join(map(utfgrid_encode, line)) for line in grid]
 	
-	return {"grid": grid, "keys": list(info.keys()), "data": info}
+	return {"grid": grid, "keys": list(new_info.keys()), "data": new_info}
 
 # the input params shall be in the form (x, y, a, b, theta, color)
 # where theta is degree and x,y,a,b is float and color in [0, 1]
@@ -155,9 +166,16 @@ def paste(grid, gridx, offsetx, offsety):
 		for y in range(0, height, 2):
 			grid[y/2+offsety][x/2+offsetx] = utfgrid_decode(gridx[y][x])
 
-def generateByCreate(data, x, y, zoom, height=256, width=256):
+def parseColor(data, info, expression=""):
+	if data.size:
+		for i, val in enumerate(info):
+			color = val.get(expression) or 0
+			data[i][5] = abs(float(color) - int(float(color)))
+
+def generateByCreate(data, info, x, y, zoom, expression="", height=256, width=256):
+	parseColor(data, info, expression)
 	png = cairosvg.svg2png(drawSvg(data, x, y, zoom, height, width))
-	info = json.dumps(drawUTFMap(data, png, x, y, zoom, height, width))
-	return png,info
+	jsn = json.dumps(drawUTFMap(data, info, png, x, y, zoom, height, width))
+	return png,jsn
 
 

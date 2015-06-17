@@ -13,3 +13,8 @@ var mapActions = Reflux.createActions([
 		"deleteMap",
 		"getMaps"
 	]);
+
+var mapItemActions = Reflux.createActions([
+		"getItem",
+		"postItem"
+	]);

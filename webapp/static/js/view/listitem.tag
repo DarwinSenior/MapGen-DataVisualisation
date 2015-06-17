@@ -1,15 +1,32 @@
 <listitem>
-	<li class='collection-item' name='list'>
-		<div onclick={toggle}>
+	<li class="collection-item" name="list">
+		<div if={opts.status!='ready'} class="grey">
+			<div class="progress">
+				<div class="indeterminate"></div>
+			</div>
+		</div>
+		<div onclick={toggle} if={opts.status=='ready'}>
 			{ name }
-			<a class="secondary-content" onclick={deletemap} href="#"><i class="fa fa-trash"></i></a>
+			<div class="secondary-content">
+				<a onclick={modifymap} href="#">
+					<i class="fa fa-pencil"></i>
+				</a>
+				<a onclick={deletemap} href="#">
+					<i class="fa fa-trash"></i>
+				</a>
+			</div>
 		</div>
 	</li>
 	<script>
 		this.id = this.opts.iid;
 		this.name = this.opts.name;
 		this.deletemap = function(event){
-			mapActions.deleteMap(this.id);
+			// mapActions.deleteMap(this.id);
+			modalActions.openModal("deleteMap", {id : this.id, name: this.name});
+			event.stopPropagation();
+		}
+		this.modifymap = function(modifymap){
+			modalActions.openModal("modifyMap", {id : this.id, name: this.name});
 			event.stopPropagation();
 		}
 

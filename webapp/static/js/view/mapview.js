@@ -28,7 +28,7 @@ riot.tag('mapview', '<div name="themap" style="height: 300px; width: 100%; posit
 				}
 			}
 		 	this.map = new L.Map(this.themap, {
-		 		center: center || [0, 0],
+		 		center: center || [0.5, 0.5],
 				crs: L.CRS.Simple,
 				zoomControl : true,
 				attributionControl : false,
@@ -37,9 +37,15 @@ riot.tag('mapview', '<div name="themap" style="height: 300px; width: 100%; posit
 				zoom: zoom || 1
 		 	}).addLayer(this.utfL).addLayer(this.mapL);
 		 	this.utfL.on('click', function(e){
-		 		if (e.data && e.data.color){
+		 		console.log(e.data)
+		 		if (e.data && e.data.COLOR){
 		 			$(".toast").hide(function(){$(this).remove});
-		 			Materialize.toast("Color: "+e.data.color, 10*1000);
+		 			var msg = [];
+		 			for (key in e.data){
+		 				msg.push(key+":"+e.data[key]);
+		 			}
+
+		 			Materialize.toast("<div>"+msg.join("<br>")+"</div>");
 		 		}
 		 	});
 		}
